@@ -16,11 +16,6 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.util.Stack;
-
 abstract class RenderNode implements Runnable {
 	protected void recycle() {}
 
@@ -30,10 +25,10 @@ abstract class RenderNode implements Runnable {
 		private Effect3D effect;
 		Texture[] textures;
 		private FigureLayout layout;
-		private final FloatBuffer vertices;
+		private final short[] vertices;
 		private final Model data;
 		private final Figure figure;
-		private final FloatBuffer normals;
+		private final byte[] normals;
 		private int x;
 		private int y;
 
@@ -41,11 +36,9 @@ abstract class RenderNode implements Runnable {
 			stack = figure.stack;
 			data = figure.data;
 			this.figure = figure;
-			vertices = ByteBuffer.allocateDirect(data.vertexArrayCapacity)
-					.order(ByteOrder.nativeOrder()).asFloatBuffer();
+			vertices = new short[data.numVertices * 3];
 			if (data.originalNormals != null) {
-				normals = ByteBuffer.allocateDirect(data.vertexArrayCapacity)
-						.order(ByteOrder.nativeOrder()).asFloatBuffer();
+				normals = new byte[data.numVertices * 3];
 			} else {
 				normals = null;
 			}
@@ -74,12 +67,10 @@ abstract class RenderNode implements Runnable {
 			}
 		}
 
-		@Override
 		public void run() {
 			render.renderFigure(data, x, y, layout, textures, effect, vertices, normals);
 		}
 
-		@Override
 		protected void recycle() {
 			stack.push(this);
 		}

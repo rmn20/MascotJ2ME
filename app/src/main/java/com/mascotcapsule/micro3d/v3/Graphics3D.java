@@ -16,15 +16,9 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import android.widget.Toast;
-
-import androidx.preference.PreferenceManager;
 
 import javax.microedition.lcdui.Graphics;
-import javax.microedition.lcdui.ViewHandler;
-import javax.microedition.util.ContextHolder;
 
-@SuppressWarnings("unused, WeakerAccess")
 public class Graphics3D {
 
 	public static final int COMMAND_LIST_VERSION_1_0 = 0xFE000001;
@@ -128,7 +122,7 @@ public class Graphics3D {
 			throw new IllegalArgumentException();
 		}
 		render.postPrimitives(texture, x, y, layout, effect, command, numPrimitives,
-				vertexCoords.clone(), normals.clone(), textureCoords.clone(), colors.clone());
+				vertexCoords, normals, textureCoords, colors);
 	}
 
 	public final void drawCommandList(Texture[] textures,
@@ -141,7 +135,8 @@ public class Graphics3D {
 			throw new NullPointerException();
 		}
 		if (textures != null) {
-			for (Texture texture : textures) {
+			for (int i=0; i<textures.length; i++) {
+				Texture texture = textures[i];
 				if (texture == null) {
 					throw new NullPointerException();
 				}
@@ -198,11 +193,6 @@ public class Graphics3D {
 	}
 
 	static {
-		if (PreferenceManager.getDefaultSharedPreferences(ContextHolder.getAppContext()).getBoolean("micro3d_using_message", false)) {
-			ViewHandler.postEvent(
-					() -> Toast.makeText(ContextHolder.getAppContext(),
-							"Mascot Capsule 3D!",
-							Toast.LENGTH_LONG).show());
-		}
+		System.out.println("Mascot Capsule 3D!");
 	}
 }

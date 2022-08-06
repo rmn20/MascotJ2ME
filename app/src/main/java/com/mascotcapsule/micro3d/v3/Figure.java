@@ -16,30 +16,15 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import static com.mascotcapsule.micro3d.v3.Util3D.TAG;
-
-import android.util.Log;
-import android.util.SparseIntArray;
-
-import com.mascotcapsule.micro3d.v3.RenderNode.FigureNode;
-
+import java.io.DataInputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-import java.util.Arrays;
-import java.util.Stack;
-
-import javax.microedition.shell.AppClassLoader;
 
 public class Figure {
-	Stack<FigureNode> stack = new Stack<>();
 	Model data;
 	Texture[] textures;
 	int selectedTex = -1;
 	int currentPattern;
 
-	@SuppressWarnings("unused")
 	public Figure(byte[] b) {
 		if (b == null) {
 			throw new NullPointerException();
@@ -47,22 +32,26 @@ public class Figure {
 		try {
 			init(b);
 		} catch (Exception e) {
-			Log.e(TAG, "Error loading data", e);
-			throw new RuntimeException(e);
+			System.out.println(Util3D.TAG + " Error loading data");
+			e.printStackTrace();
+			throw new RuntimeException();
 		}
 	}
 
-	@SuppressWarnings("unused")
 	public Figure(String name) throws IOException {
-		byte[] bytes = AppClassLoader.getResourceAsBytes(name);
+		DataInputStream io = new DataInputStream((new Object()).getClass().getResourceAsStream(name));
+		byte[] bytes = new byte[io.available()];
+        io.readFully(bytes);
+		
 		if (bytes == null) {
 			throw new IOException("Error reading resource: " + name);
 		}
 		try {
 			init(bytes);
 		} catch (Exception e) {
-			Log.e(TAG, "Error loading data from [" + name + "]", e);
-			throw new RuntimeException(e);
+			System.out.println(Util3D.TAG + " Error loading data from [" + name + "]");
+			e.printStackTrace();
+			throw new RuntimeException();
 		}
 	}
 
@@ -70,52 +59,13 @@ public class Figure {
 		data = Loader.loadMbacData(bytes);
 		Utils.transform(data.originalVertices, data.vertices,
 				data.originalNormals, data.normals, data.bones, null);
-		sortPolygons();
-		fillTexCoordBuffer();
+		//fillTexCoordBuffer();
 	}
 
-	@SuppressWarnings("unused")
 	public final void dispose() {
 		data = null;
 	}
 
-	private void sortPolygons() {
-		Model.Polygon[] polygonsT = data.polygonsT;
-		Arrays.sort(polygonsT, (a, b) -> {
-			int cmp = Integer.compare(a.blendMode, b.blendMode);
-			if (cmp != 0) return cmp;
-			cmp = Integer.compare(a.face, b.face);
-			if (cmp != 0) return cmp;
-			return a.doubleFace - b.doubleFace;
-		});
-		int[][][] subMeshesLengthsT = data.subMeshesLengthsT;
-		int[] indexArray = data.indices;
-		int pos = 0;
-		for (Model.Polygon p : polygonsT) {
-			int[] indices = p.indices;
-			int length = indices.length;
-			subMeshesLengthsT[p.blendMode >> 1][p.face][p.doubleFace] += length;
-			System.arraycopy(indices, 0, indexArray, pos, length);
-			pos += length;
-		}
-
-		Model.Polygon[] polygonsC = data.polygonsC;
-		Arrays.sort(polygonsC, (a, b) -> {
-			int cmp = Integer.compare(a.blendMode, b.blendMode);
-			if (cmp != 0) return cmp;
-			return a.doubleFace - b.doubleFace;
-		});
-		int[][] subMeshesLengthsC = data.subMeshesLengthsC;
-		for (Model.Polygon p : polygonsC) {
-			int[] indices = p.indices;
-			int length = indices.length;
-			subMeshesLengthsC[p.blendMode >> 1][p.doubleFace] += length;
-			System.arraycopy(indices, 0, indexArray, pos, length);
-			pos += length;
-		}
-	}
-
-	@SuppressWarnings("unused")
 	public synchronized final void setPosture(ActionTable actionTable, int action, int frame) {
 		if (actionTable == null) {
 			throw new NullPointerException();
@@ -123,12 +73,13 @@ public class Figure {
 			throw new IllegalArgumentException();
 		}
 		Action act = actionTable.actions[action];
-		final SparseIntArray dynamic = act.dynamic;
+		final int[] dynamic = act.dynamic;
+		
 		if (dynamic != null) {
 			int iFrame = frame < 0 ? 0 : frame >> 16;
-			for (int i = dynamic.size() - 1; i >= 0; i--) {
-				if (dynamic.keyAt(i) <= iFrame) {
-					currentPattern = dynamic.valueAt(i);
+			for (int i = dynamic.length / 2 - 1; i >= 0; i--) {
+				if (dynamic[i * 2] <= iFrame) {
+					currentPattern = dynamic[i * 2 + 1];
 					applyPattern();
 					break;
 				}
@@ -141,14 +92,17 @@ public class Figure {
 	private void applyPattern() {
 		int[] indexArray = data.indices;
 		int pos = 0;
-		int invalid = data.vertices.capacity() / 3 - 1;
-		for (Model.Polygon p : data.polygonsT) {
+		int invalid = data.numVertices / 3 - 1;
+		
+		for (int i=0; i<data.polygonsT.length; i++) {
+			Model.Polygon p = data.polygonsT[i];
 			int[] indices = p.indices;
 			int length = indices.length;
 			int pp = p.pattern;
+			
 			if ((pp & currentPattern) == pp) {
-				for (int i = 0; i < length; i++) {
-					indexArray[pos++] = indices[i];
+				for (int t = 0; t < length; t++) {
+					indexArray[pos++] = indices[t];
 				}
 			} else {
 				while (length > 0) {
@@ -158,13 +112,15 @@ public class Figure {
 			}
 		}
 
-		for (Model.Polygon p : data.polygonsC) {
+		for (int i=0; i<data.polygonsC.length; i++) {
+			Model.Polygon p = data.polygonsC[i];
 			int[] indices = p.indices;
 			int length = indices.length;
 			int pp = p.pattern;
+			
 			if ((pp & currentPattern) == pp) {
-				for (int i = 0; i < length; i++) {
-					indexArray[pos++] = indices[i];
+				for (int t = 0; t < length; t++) {
+					indexArray[pos++] = indices[t];
 				}
 			} else {
 				while (length > 0) {
@@ -195,7 +151,8 @@ public class Figure {
 	public final void setTexture(Texture[] t) {
 		if (t == null) throw new NullPointerException();
 		if (t.length == 0) throw new IllegalArgumentException();
-		for (Texture texture : t) {
+		for (int i=0; i<t.length; i++) {
+			Texture texture = t[i];
 			if (texture == null) throw new NullPointerException();
 			if (texture.isSphere) throw new IllegalArgumentException();
 		}
@@ -203,7 +160,6 @@ public class Figure {
 		selectedTex = -1;
 	}
 
-	@SuppressWarnings("WeakerAccess")
 	public final int getNumTextures() {
 		if (textures == null) {
 			return 0;
@@ -211,7 +167,6 @@ public class Figure {
 		return textures.length;
 	}
 
-	@SuppressWarnings("unused")
 	public final void selectTexture(int idx) {
 		if (idx < 0 || idx >= getNumTextures()) {
 			throw new IllegalArgumentException();
@@ -219,12 +174,10 @@ public class Figure {
 		selectedTex = idx;
 	}
 
-	@SuppressWarnings("unused")
 	public final int getNumPattern() {
 		return data.numPatterns;
 	}
 
-	@SuppressWarnings("unused")
 	public synchronized final void setPattern(int idx) {
 		currentPattern = idx;
 		applyPattern();
@@ -234,15 +187,16 @@ public class Figure {
 		Action.Bone[] actionBones = act.boneActions;
 		if (actionBones.length == 0) return;
 		synchronized (act.matrices) {
-			for (final Action.Bone actionBone : actionBones) {
+			for (int i=0; i<actionBones.length; i++) {
+				Action.Bone actionBone = actionBones[i];
 				actionBone.setFrame(frame);
 			}
+			//todo
 			Utils.transform(data.originalVertices, data.vertices,
 					data.originalNormals, data.normals, data.bones, act.matrices);
 		}
 	}
-
-	private void fillTexCoordBuffer() {
+	/*private void fillTexCoordBuffer() {
 		ByteBuffer buffer = data.texCoordArray;
 		buffer.rewind();
 		for (Model.Polygon poly : data.polygonsT) {
@@ -258,8 +212,7 @@ public class Figure {
 
 	synchronized FloatBuffer getVertexData() {
 		if (data.vertexArray == null) {
-			data.vertexArray = ByteBuffer.allocateDirect(data.vertexArrayCapacity)
-					.order(ByteOrder.nativeOrder()).asFloatBuffer();
+			data.vertexArray = ByteBuffer.allocateDirect(data.vertexArrayCapacity).asFloatBuffer();
 		}
 		Utils.fillBuffer(data.vertexArray, data.vertices, data.indices);
 		return data.vertexArray;
@@ -275,5 +228,7 @@ public class Figure {
 		}
 		Utils.fillBuffer(data.normalsArray, data.normals, data.indices);
 		return data.normalsArray;
-	}
+	}*/
 }
+
+

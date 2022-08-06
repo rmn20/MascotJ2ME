@@ -16,6 +16,7 @@
 
 package com.mascotcapsule.micro3d.v3;
 
+import com.mascotcapsule.micro3d.v3.Utils;
 import static android.opengl.GLES20.*;
 import static com.mascotcapsule.micro3d.v3.Graphics3D.*;
 import static com.mascotcapsule.micro3d.v3.Util3D.TAG;
@@ -31,7 +32,14 @@ import android.opengl.GLUtils;
 import android.opengl.Matrix;
 import android.util.Log;
 
+import com.mascotcapsule.micro3d.v3.AffineTrans;
+import com.mascotcapsule.micro3d.v3.Effect3D;
+import com.mascotcapsule.micro3d.v3.Figure;
+import com.mascotcapsule.micro3d.v3.FigureLayout;
+import com.mascotcapsule.micro3d.v3.Graphics3D;
+import com.mascotcapsule.micro3d.v3.Light;
 import com.mascotcapsule.micro3d.v3.RenderNode.FigureNode;
+import com.mascotcapsule.micro3d.v3.Texture;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

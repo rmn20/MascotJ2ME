@@ -16,9 +16,6 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import androidx.annotation.NonNull;
-
-@SuppressWarnings("unused, WeakerAccess")
 public class Vector3D {
 	public int x;
 	public int y;
@@ -64,7 +61,8 @@ public class Vector3D {
 		int x = this.x;
 		int y = this.y;
 		int z = this.z;
-		int shift = Integer.numberOfLeadingZeros(Math.abs(x) | Math.abs(y) | Math.abs(z)) - 17;
+		//todo
+		/*int shift = Integer.numberOfLeadingZeros(Math.abs(x) | Math.abs(y) | Math.abs(z)) - 17;
 		if (shift > 0) {
 			x <<= shift;
 			y <<= shift;
@@ -74,7 +72,7 @@ public class Vector3D {
 			x >>= shift;
 			y >>= shift;
 			z >>= shift;
-		}
+		}*/
 		int i = Util3D.sqrt(x * x + y * y + z * z);
 		if (i != 0) {
 			this.x = (x << 12) / i;
@@ -145,8 +143,6 @@ public class Vector3D {
 		this.z = x * v.y - y * v.x;
 	}
 
-	@NonNull
-	@Override
 	public String toString() {
 		return "Vector3D{" + x + ", " + y + ", " + z + "}";
 	}

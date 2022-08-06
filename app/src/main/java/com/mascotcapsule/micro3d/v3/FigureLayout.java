@@ -16,7 +16,6 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-@SuppressWarnings({"unused", "WeakerAccess"})
 public class FigureLayout {
 
 	private AffineTrans[] affineArray;
@@ -70,7 +69,8 @@ public class FigureLayout {
 		if (trans == null || trans.length == 0) {
 			throw new NullPointerException();
 		}
-		for (AffineTrans tran : trans) {
+		for (int i=0; i<trans.length; i++) {
+			AffineTrans tran = trans[i];
 			if (tran == null) throw new NullPointerException();
 		}
 		affineArray = trans;

@@ -16,10 +16,9 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-@SuppressWarnings({"unused", "WeakerAccess"})
 public class Util3D {
 
-	static final String TAG = "micro3d";
+	public static final String TAG = "micro3d";
 
 	public static int sqrt(int p) {
 		if (p == 0) return 0;
@@ -30,12 +29,12 @@ public class Util3D {
 		} else {
 			a = p;
 		}
-		return (int) Math.round(Math.sqrt(a));
+		return (int) (Math.sqrt(a));
 	}
 
 	public static int sin(int p) {
 		double radian = p * Math.PI / 2048;
-		return (int) Math.round(Math.sin(radian) * 4096);
+		return (int) (Math.sin(radian) * 4096);
 	}
 
 	public static int cos(int p) {

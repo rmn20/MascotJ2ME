@@ -16,10 +16,6 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-
-@SuppressWarnings({"WeakerAccess", "unused"})
 public class AffineTrans {
 	public int m00;
 	public int m01;
@@ -386,16 +382,13 @@ public class AffineTrans {
 		m23 = (l20 * r03 + l21 * r13 + l22 * r23 + 2048 >> 12) + a1.m23;
 	}
 
-	@NonNull
-	@Override
 	public String toString() {
 		return super.toString() + "{" + m00 + ", " + m01 + ", " + m02 + ", " + m03 + ", "
 				+ m10 + ", " + m11 + ", " + m12 + ", " + m13 + ", "
 				+ m20 + ", " + m21 + ", " + m22 + ", " + m23 + "}";
 	}
 
-	@Override
-	public boolean equals(@Nullable Object obj) {
+	public boolean equals(Object obj) {
 		if (!(obj instanceof AffineTrans)) {
 			return false;
 		}

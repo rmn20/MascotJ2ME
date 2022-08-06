@@ -16,54 +16,51 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
-
 class Model {
 
+	final int numVertices;
 	final int numPatterns;
 	final int numTextures;
 	final boolean hasPolyC;
 	final boolean hasPolyT;
 
-	FloatBuffer vertexArray;
+	/*FloatBuffer vertexArray;
 	FloatBuffer normalsArray;
-	final ByteBuffer texCoordArray;
-	final FloatBuffer originalVertices;
 	FloatBuffer normals;
-	FloatBuffer originalNormals;
+	final ByteBuffer texCoordArray;*/
+	final short[] originalVertices;
+	final short[] vertices; //used for animation
+	
+	byte[] originalNormals;
+	byte[] normals; //used for animation
+	
 	final Polygon[] polygonsC;
 	final Polygon[] polygonsT;
-	final FloatBuffer vertices;
-	final int vertexArrayCapacity;
-	final int[][][] subMeshesLengthsT;
-	final int[][] subMeshesLengthsC;
 	int numVerticesPolyT;
 	final int[] indices;
-	final ByteBuffer bones;
+	final int[] bones;
 
 	Model(int vertices, int numBones, int patterns, int numTextures,
 		  int polyT3, int polyT4, int polyC3, int polyC4) {
 		numPatterns = patterns;
 		this.numTextures = numTextures;
-		subMeshesLengthsT = new int[4][numTextures][2];
-		subMeshesLengthsC = new int[4][2];
+		
 		numVerticesPolyT = polyT3 * 3 + polyT4 * 6;
-		int numVertices = (polyT3 + polyC3) * 3 + (polyT4 + polyC4) * 6;
+		numVertices = (polyT3 + polyC3) * 3 + (polyT4 + polyC4) * 6;
+		
 		indices = new int[numVertices];
-		vertexArrayCapacity = numVertices * 3 * 4;
+		
 		polygonsC = new Polygon[polyC3 + polyC4];
 		polygonsT = new Polygon[polyT3 + polyT4];
 		hasPolyT = polyT3 + polyT4 > 0;
 		hasPolyC = polyC3 + polyC4 > 0;
-		ByteOrder order = ByteOrder.nativeOrder();
-		texCoordArray = ByteBuffer.allocateDirect(numVertices * 5).order(order);
-		originalVertices = ByteBuffer.allocateDirect(vertices * 3 * 4).order(order).asFloatBuffer();
-		int i = vertices * 3 + 3;
-		this.vertices = ByteBuffer.allocateDirect(i * 4).order(order).asFloatBuffer();
-		this.vertices.put(--i, Float.POSITIVE_INFINITY);
-		bones = ByteBuffer.allocateDirect(numBones * (12 + 2) * 4).order(order);
+		
+		/*ByteOrder order = ByteOrder.nativeOrder();
+		texCoordArray = ByteBuffer.allocateDirect(numVertices * 5).order(order);*/
+		
+		originalVertices = new short[vertices * 3];
+		this.vertices = new short[vertices * 3];
+		bones = new int[numBones * (12 + 2) * 2];
 	}
 
 	static final class Polygon {
@@ -75,14 +72,18 @@ class Model {
 		private static final int DOUBLE_FACE = 16;
 		static final int LIGHTING = 32;
 		static final int SPECULAR = 64;
+		
 		final int[] indices;
 		final int blendMode;
 		final int doubleFace;
 		byte[] texCoords;
-		int face = -1;
-		int pattern;
+		//r, g, b, light 0/1, specular 0/1
+		//or
+		//u, v, light 0/1, specular 0/1, trasparent 0/1
+		int face = -1; //texture number?
+		int pattern; //idk...
 
-		Polygon(int material, byte[] texCoords, int... indices) {
+		Polygon(int material, byte[] texCoords, int[] indices) {
 			this.indices = indices;
 			this.texCoords = texCoords;
 			doubleFace = (material & DOUBLE_FACE) >> 4;

@@ -16,19 +16,11 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import static com.mascotcapsule.micro3d.v3.Util3D.TAG;
-import static com.mascotcapsule.micro3d.v3.Utils.IDENTITY_AFFINE;
-import static com.mascotcapsule.micro3d.v3.Utils.TO_FLOAT;
-import static com.mascotcapsule.micro3d.v3.Utils.TO_RADIANS;
 
-import android.util.Log;
-import android.util.SparseIntArray;
-
+import com.mascotcapsule.micro3d.v3.Util3D;
+import com.mascotcapsule.micro3d.v3.Utils;
 import java.io.EOFException;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.nio.FloatBuffer;
 
 class Loader {
 	private static final int[] POOL_NORMALS = new int[]{0, 0, 64, 0, 0, -64, 0, 0};
@@ -51,10 +43,8 @@ class Loader {
 		if (loader.readUByte() != 0 || version < 2 || version > 5) {
 			throw new RuntimeException("Unsupported MBAC version: " + version);
 		}
-		int vertexFormat;
-		int normalFormat;
-		int polygonFormat;
-		int boneFormat;
+		
+		int vertexFormat, normalFormat, polygonFormat, boneFormat;
 		if (version > 3) {
 			vertexFormat = loader.readUByte();
 			normalFormat = loader.readUByte();
@@ -75,11 +65,7 @@ class Loader {
 		int numPolyT4 = loader.readUShort();
 		int numBones = loader.readUShort();
 
-		int numTextures;
-		int numColors;
-		int numPolyC3;
-		int numPolyC4;
-		int numPatterns;
+		int numTextures,  numColors, numPolyC3, numPolyC4, numPatterns;
 		if (polygonFormat < 3) {
 			numTextures = 1;
 			numPolyC3 = 0;
@@ -93,15 +79,18 @@ class Loader {
 			numPatterns = loader.readUShort();
 			numColors = loader.readUShort();
 		}
+		
 		if (numVertices > 21845 || numTextures > 16 || numPatterns > 33 || numColors > 256) {
-			throw new RuntimeException(String.format("MBAC format error:\n" +
-							"numVertices=%d numTextures=%d " +
-							"numPatterns=%d numColors=%d\n",
-					numVertices, numTextures, numPatterns, numColors));
+			 System.out.println("MBAC format error:\n" +
+						"numVertices=" + numVertices + " numTextures=" + numTextures + " " +
+						"numPatterns=" + numPatterns + " numColors=" + numColors);
+						
+			throw new RuntimeException();
 		}
 
 		Model data = new Model(numVertices, numBones, numPatterns,
 				numTextures, numPolyT3, numPolyT4, numPolyC3, numPolyC4);
+		
 		int[][][] patterns = new int[numPatterns][(numTextures + 1)][2];
 		if (version == 5) {
 			for (int i = 0; i < numPatterns; i++) {
@@ -125,32 +114,29 @@ class Loader {
 			throw new RuntimeException("Unexpected vertexFormat: " + vertexFormat);
 		}
 		loader.clearCache();
-		data.originalVertices.rewind();
 
 		if (normalFormat != 0) {
-			FloatBuffer normals = ByteBuffer.allocateDirect(numVertices * 3 * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
+			byte[] normals = new byte[numVertices * 3];
+			
 			if (normalFormat == 1) {
 				try {
 					loader.readNormalsV1(normals);
 				} catch (IOException e) {
 					e.printStackTrace();
-					throw new RuntimeException("Normals loading error", e);
+					throw new RuntimeException("Normals loading error");
 				}
 			} else if (normalFormat == 2) {
 				try {
 					loader.readNormalsV2(normals);
 				} catch (IOException e) {
 					e.printStackTrace();
-					throw new RuntimeException("Normals loading error", e);
+					throw new RuntimeException("Normals loading error");
 				}
 			} else {
 				throw new RuntimeException("Unsupported normalFormat: " + normalFormat);
 			}
-			normals.rewind();
+			
 			data.originalNormals = normals;
-			int len = numVertices * 3 + 3;
-			data.normals = ByteBuffer.allocateDirect(len * 4).order(ByteOrder.nativeOrder()).asFloatBuffer();
-			data.normals.put(--len, 1.0f);
 		}
 		loader.clearCache();
 
@@ -195,6 +181,7 @@ class Loader {
 			for (int j = 0; j < cnt; j++) {
 				polygonsC[c4++].pattern = p;
 			}
+			
 			for (int j = 0; j < numTextures; j++) {
 				polygons = pattern[j + 1];
 				cnt = polygons[0];
@@ -223,7 +210,7 @@ class Loader {
 			available -= 20;
 		}
 		if (available > 0) {
-			Log.e(TAG, "Uninterpreted bytes in MBAC (" + available + ", v=" + version);
+			System.out.println(Util3D.TAG + " Uninterpreted bytes in MBAC (" + available + ", v=" + version);
 		}
 
 		return data;
@@ -249,7 +236,7 @@ class Loader {
 		}
 		if (transTypeCounts[7] != 0) {
 			// index 7 is unknown, I did not find mtra with non-zero value
-			Log.w(TAG, "ActTableData: transTypeCounts[7] = " + transTypeCounts[7]);
+			System.out.println(Util3D.TAG + " ActTableData: transTypeCounts[7] = " + transTypeCounts[7]);
 		}
 		//noinspection unused
 		int dataSize = reader.readInt();
@@ -266,12 +253,14 @@ class Loader {
 			if (version < 5) continue;
 			// dynamic polygons chunk
 			int count = reader.readUShort();
-			final SparseIntArray sparseIntArray = new SparseIntArray(count);
+			final int[] sparseIntArray = new int[count * 2];
 			actions[action].dynamic = sparseIntArray;
 			for (int j = 0; j < count; j++) {
 				int frame = reader.readUShort();
 				int pattern = reader.readInt();
-				sparseIntArray.put(frame, pattern);
+                                
+                                sparseIntArray[count * 2] = frame;
+                                sparseIntArray[count * 2 + 1] = pattern;
 			}
 		}
 
@@ -280,43 +269,46 @@ class Loader {
 			available -= 20;
 		}
 		if (available > 0) {
-			Log.e(TAG, "ActTableData: uninterpreted bytes in MTRA");
+			System.out.println(Util3D.TAG + " ActTableData: uninterpreted bytes in MTRA");
 		}
 
 		return actions;
 	}
 
-	private void readVerticesV1(FloatBuffer vertices) throws IOException {
-		while (vertices.hasRemaining()) {
-			vertices.put(readShort());
+	private void readVerticesV1(short[] vertices) throws IOException {
+		for (int i=0; i<vertices.length; i++) {
+			 vertices[i] = readShort();
 		}
 	}
 
-	private void readVerticesV2(FloatBuffer vertices) throws IOException {
-		while (vertices.hasRemaining()) {
+	private void readVerticesV2(short[] vertices) throws IOException {
+		for (int i=0; i<vertices.length; i++) {
 			int chunk = readUBits(8);
 			int type = chunk >> 6;
 			int size = SIZES[type];
 			int count = (chunk & 0x3F) + 1;
-			if (count > vertices.remaining()) {
+			
+			if (count > vertices.length - i - 1) {
 				throw new IOException("Vertex data largest numVertices param");
 			}
-			for (int i = 0; i < count; i++) {
-				vertices.put(readBits(size));
-				vertices.put(readBits(size));
-				vertices.put(readBits(size));
+			
+			for (int j=0; j<count; j++, i=+3) {
+				vertices[i] = (short) readBits(size);
+				vertices[i + 1] = (short) readBits(size);
+				vertices[i + 2] = (short) readBits(size);
 			}
+			 vertices[i] = readShort();
 		}
 	}
 
-	private void readNormalsV1(FloatBuffer normals) throws IOException {
-		while (normals.hasRemaining()) {
-			normals.put(readShort());
+	private void readNormalsV1(byte[] normals) throws IOException {
+		for (int i=0; i<normals.length; i++) {
+			 normals[i] = (byte) (readShort() >> 6); // +-4096 -> +-64
 		}
 	}
 
-	private void readNormalsV2(FloatBuffer normals) throws IOException {
-		for (int i = 0, len = normals.capacity() / 3; i < len; i++) {
+	private void readNormalsV2(byte[] normals) throws IOException {
+		for (int i = 0, len = normals.length / 3; i < len; i++) {
 			int x = readUBits(7);
 			int y;
 			int z;
@@ -331,12 +323,13 @@ class Loader {
 				y = (readUBits(7) << 25) >> 25;
 				int sign = readUBits(1);
 				int dq = 4096 - x * x - y * y;
-				z = dq > 0 ? (int) Math.round(Math.sqrt(dq)) : 0;
+				z = dq > 0 ? (int) Math.sqrt(dq) : 0;
 				if (sign == 1) z = -z;
 			}
-			normals.put(x);
-			normals.put(y);
-			normals.put(z);
+			
+			normals[i * 3] = (byte) x;
+			normals[i * 3 + 1] = (byte) y;
+			normals[i * 3 + 2] = (byte) z;
 		}
 	}
 
@@ -346,7 +339,7 @@ class Loader {
 		int colorBits = readUByte();
 		int colorIdBits = readUByte();
 		int unknownByte = readUByte();
-		if (unknownByte != 0) Log.w(TAG, "PolyC unknownByte = " + unknownByte);
+		if (unknownByte != 0) System.out.println(Util3D.TAG + " PolyC unknownByte = " + unknownByte);
 
 		byte[] colors = new byte[numColor * 3];
 		for (int i = 0; i < colors.length; i++) {
@@ -376,7 +369,7 @@ class Loader {
 					R, G, B, light, specular,
 					R, G, B, light, specular,
 			};
-			final Model.Polygon polygon = new Model.Polygon(material, materialData, a, b, c);
+			final Model.Polygon polygon = new Model.Polygon(material, materialData, new int[] {a, b, c});
 			polygonsC[i] = polygon;
 		}
 
@@ -406,7 +399,7 @@ class Loader {
 					R, G, B, light, specular,
 					R, G, B, light, specular,
 			};
-			final Model.Polygon polygon = new Model.Polygon(material, materialData, a, b, c, c, b, d);
+			final Model.Polygon polygon = new Model.Polygon(material, materialData, new int[] {a, b, c, c, b, d});
 			polygonsC[i] = polygon;
 		}
 	}
@@ -432,7 +425,7 @@ class Loader {
 					readByte(), readByte(), 1, 0, transparent,
 					readByte(), readByte(), 1, 0, transparent,
 			};
-			polygons[i] = new Model.Polygon(mat, texCoords, a, b, c);
+			polygons[i] = new Model.Polygon(mat, texCoords, new int[] {a, b, c});
 		}
 
 		for (int i = numPolyT3, len = polygons.length; i < len; i++) {
@@ -465,7 +458,7 @@ class Loader {
 					uB, vB, 1, 0, transparent,
 					uD, vD, 1, 0, transparent,
 			};
-			polygons[i] = new Model.Polygon(mat, texCoords, a, b, c, c, b, d);
+			polygons[i] = new Model.Polygon(mat, texCoords, new int[] {a, b, c, c, b, d});
 		}
 	}
 
@@ -493,7 +486,7 @@ class Loader {
 					(byte) readUBits(7), (byte) readUBits(7), light, specular, transparent,
 					(byte) readUBits(7), (byte) readUBits(7), light, specular, transparent,
 			};
-			polygons[i] = new Model.Polygon(material, texCoords, a, b, c);
+			polygons[i] = new Model.Polygon(material, texCoords, new int[]{a, b, c});
 		}
 
 		for (int i = numTriangles, len = polygons.length; i < len; i++) {
@@ -528,7 +521,7 @@ class Loader {
 					uB, vB, light, specular, transparent,
 					uD, vD, light, specular, transparent,
 			};
-			polygons[i] = new Model.Polygon(material, texCoords, a, b, c, c, b, d);
+			polygons[i] = new Model.Polygon(material, texCoords, new int[] {a, b, c, c, b, d});
 		}
 	}
 
@@ -537,7 +530,7 @@ class Loader {
 		int vertexIndexBits = readUBits(8);
 		int uvBits = readUBits(8);
 		int unknownByte = readUBits(8);
-		if (unknownByte != 0) Log.w(TAG, "PolyT v3: unknownByte = " + unknownByte);
+		if (unknownByte != 0) System.out.println(Util3D.TAG + " PolyT v3: unknownByte = " + unknownByte);
 
 
 		Model.Polygon[] polygons = data.polygonsT;
@@ -560,7 +553,7 @@ class Loader {
 					(byte) readUBits(uvBits), (byte) readUBits(uvBits), light, specular, transparent,
 					(byte) readUBits(uvBits), (byte) readUBits(uvBits), light, specular, transparent,
 			};
-			polygons[i] = new Model.Polygon(material, texCoords, a, b, c);
+			polygons[i] = new Model.Polygon(material, texCoords, new int[] {a, b, c});
 		}
 
 		for (int i = numTriangles, len = polygons.length; i < len; i++) {
@@ -595,40 +588,32 @@ class Loader {
 					uB, vB, light, specular, transparent,
 					uD, vD, light, specular, transparent,
 			};
-			polygons[i] = new Model.Polygon(material, texCoords, a, b, c, c, b, d);
+			polygons[i] = new Model.Polygon(material, texCoords, new int[] {a, b, c, c, b, d});
 		}
 	}
 
 	private int readBones(int numBones, Model data) throws IOException {
-		ByteBuffer bones = data.bones;
+		int[] bones = data.bones;
 
 		int boneVertexSum = 0;
 		for (int i = 0; i < numBones; i++) {
 			int boneVertices = readUShort();
-			int parent = readShort();
+			short parent = readShort();
 
 			if (parent < -1) {
 				throw new RuntimeException("Format error (negative parent). Please report this bug");
 			}
-			bones.putInt(boneVertices);
-			bones.putInt(parent);
+			bones[i * 14] = (short) boneVertices;
+			bones[i * 14 + 1] = parent;
 
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort());
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort());
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort() * TO_FLOAT);
-			bones.putFloat(readShort());
+			//matrix
+			for(int ii = 2; ii <14; ii++) {
+				bones[i * 14 + ii] = readShort();
+			}
 
 			boneVertexSum += boneVertices;
 		}
-		bones.rewind();
+		
 		return boneVertexSum;
 	}
 
@@ -637,22 +622,22 @@ class Loader {
 		Action.Bone boneAction = new Action.Bone(type, mtxOffset, act.matrices);
 		switch (type) {
 			case 0:
-				float[] m = act.matrices;
-				m[mtxOffset     ] = readShort() * TO_FLOAT;
-				m[mtxOffset +  1] = readShort() * TO_FLOAT;
-				m[mtxOffset +  2] = readShort() * TO_FLOAT;
+				int[] m = act.matrices;
+				m[mtxOffset     ] = readShort();
+				m[mtxOffset +  1] = readShort();
+				m[mtxOffset +  2] = readShort();
 				m[mtxOffset +  3] = readShort();
-				m[mtxOffset +  4] = readShort() * TO_FLOAT;
-				m[mtxOffset +  5] = readShort() * TO_FLOAT;
-				m[mtxOffset +  6] = readShort() * TO_FLOAT;
+				m[mtxOffset +  4] = readShort();
+				m[mtxOffset +  5] = readShort();
+				m[mtxOffset +  6] = readShort();
 				m[mtxOffset +  7] = readShort();
-				m[mtxOffset +  8] = readShort() * TO_FLOAT;
-				m[mtxOffset +  9] = readShort() * TO_FLOAT;
-				m[mtxOffset + 10] = readShort() * TO_FLOAT;
+				m[mtxOffset +  8] = readShort();
+				m[mtxOffset +  9] = readShort();
+				m[mtxOffset + 10] = readShort();
 				m[mtxOffset + 11] = readShort();
 				break;
 			case 1:
-				System.arraycopy(IDENTITY_AFFINE, 0, act.matrices, mtxOffset, 12);
+				System.arraycopy(Utils.IDENTITY_AFFINE, 0, act.matrices, mtxOffset, 12);
 				break;
 			case 2: {
 				// translate
@@ -672,9 +657,9 @@ class Loader {
 				Action.Animation scale = new Action.Animation(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort(); // key frame
-					float x = readShort() * TO_FLOAT;  // scale.x
-					float y = readShort() * TO_FLOAT;  // scale.y
-					float z = readShort() * TO_FLOAT;  // scale.z
+					int x = readShort();  // scale.x
+					int y = readShort();  // scale.y
+					int z = readShort();  // scale.z
 					scale.set(j, kf, x, y, z);
 				}
 				boneAction.scale = scale;
@@ -684,9 +669,9 @@ class Loader {
 				Action.Animation rotate = new Action.Animation(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort(); // key frame
-					float x = readShort();  // rotate.x
-					float y = readShort();  // rotate.y
-					float z = readShort();  // rotate.z
+					int x = readShort();  // rotate.x
+					int y = readShort();  // rotate.y
+					int z = readShort();  // rotate.z
 					rotate.set(j, kf, x, y, z);
 				}
 				boneAction.rotate = rotate;
@@ -696,7 +681,7 @@ class Loader {
 				Action.RollAnim roll = new Action.RollAnim(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort();   // key frame
-					float r = readShort() * TO_RADIANS; // roll
+					int r = readShort(); // roll
 					roll.set(j, kf, r);
 				}
 				boneAction.roll = roll;
@@ -716,15 +701,15 @@ class Loader {
 				Action.Animation rotate = new Action.Animation(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort(); // key frame
-					float x = readShort();  // rotate.x
-					float y = readShort();  // rotate.y
-					float z = readShort();  // rotate.z
+					int x = readShort();  // rotate.x
+					int y = readShort();  // rotate.y
+					int z = readShort();  // rotate.z
 					rotate.set(j, kf, x, y, z);
 				}
 				boneAction.rotate = rotate;
 
 				// roll (for all frames)
-				float r = readShort() * TO_RADIANS;
+				int r = readShort();
 				Action.RollAnim roll = new Action.RollAnim(1);
 				roll.set(0, 0, r);
 				boneAction.roll = roll;
@@ -736,9 +721,9 @@ class Loader {
 				Action.Animation rotate = new Action.Animation(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort(); // key frame
-					float x = readShort();  // rotate.x
-					float y = readShort();  // rotate.y
-					float z = readShort();  // rotate.z
+					int x = readShort();  // rotate.x
+					int y = readShort();  // rotate.y
+					int z = readShort();  // rotate.z
 					rotate.set(j, kf, x, y, z);
 				}
 				boneAction.rotate = rotate;
@@ -748,7 +733,7 @@ class Loader {
 				Action.RollAnim roll = new Action.RollAnim(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort();   // key frame
-					float r = readShort() * TO_RADIANS; // roll
+					int r = readShort(); // roll
 					roll.set(j, kf, r);
 				}
 				boneAction.roll = roll;
@@ -760,9 +745,9 @@ class Loader {
 				Action.Animation rotate = new Action.Animation(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort(); // key frame
-					float x = readShort();  // rotate.x
-					float y = readShort();  // rotate.y
-					float z = readShort();  // rotate.z
+					int x = readShort();  // rotate.x
+					int y = readShort();  // rotate.y
+					int z = readShort();  // rotate.z
 					rotate.set(j, kf, x, y, z);
 				}
 				boneAction.rotate = rotate;
@@ -786,9 +771,9 @@ class Loader {
 				Action.Animation rotate = new Action.Animation(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort(); // key frame
-					float x = readShort();  // rotate.x
-					float y = readShort();  // rotate.y
-					float z = readShort();  // rotate.z
+					int x = readShort();  // rotate.x
+					int y = readShort();  // rotate.y
+					int z = readShort();  // rotate.z
 					rotate.set(j, kf, x, y, z);
 				}
 				boneAction.rotate = rotate;
@@ -798,7 +783,7 @@ class Loader {
 				Action.RollAnim roll = new Action.RollAnim(count);
 				for (int j = 0; j < count; j++) {
 					int kf = readUShort();   // key frame
-					float r = readShort() * TO_RADIANS; // roll
+					int r = readShort(); // roll
 					roll.set(j, kf, r);
 				}
 				boneAction.roll = roll;
@@ -842,7 +827,7 @@ class Loader {
 
 	private int readUBits(int size) throws IOException {
 		if (size > 25) {
-			Log.e(TAG, "readUBits(size=" + size + ')');
+			System.out.println(Util3D.TAG + " readUBits(size=" + size + ')');
 			throw new IllegalArgumentException("Invalid bit size=" + size);
 		}
 		while (size > cached) {

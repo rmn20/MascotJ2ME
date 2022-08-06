@@ -16,7 +16,6 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-@SuppressWarnings("unused")
 public class Light {
 
 	private Vector3D mDirVector;

@@ -16,15 +16,10 @@
 
 package com.mascotcapsule.micro3d.v3;
 
-import static com.mascotcapsule.micro3d.v3.Util3D.TAG;
-
-import android.util.Log;
-
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 
-import javax.microedition.shell.AppClassLoader;
-
-@SuppressWarnings({"unused", "WeakerAccess"})
 public class ActionTable {
 	Action[] actions;
 
@@ -35,8 +30,9 @@ public class ActionTable {
 		try {
 			actions = Loader.loadMtraData(b);
 		} catch (IOException e) {
-			Log.e(TAG, "Error loading data", e);
-			throw new RuntimeException(e);
+			System.out.println(Util3D.TAG + " Error loading data");
+                        e.printStackTrace();
+			throw new RuntimeException();
 		}
 	}
 
@@ -44,15 +40,20 @@ public class ActionTable {
 		if (name == null) {
 			throw new NullPointerException();
 		}
-		byte[] bytes = AppClassLoader.getResourceAsBytes(name);
+		
+        DataInputStream io = new DataInputStream((new Object()).getClass().getResourceAsStream(name));
+		byte[] bytes = new byte[io.available()];
+        io.readFully(bytes);
+                
 		if (bytes == null) {
 			throw new IOException();
 		}
 		try {
 			actions = Loader.loadMtraData(bytes);
 		} catch (IOException e) {
-			Log.e(TAG, "Error loading data from [" + name + "]", e);
-			throw new RuntimeException(e);
+			System.out.println(Util3D.TAG + " Error loading data from [" + name + "]");
+                        e.printStackTrace();
+			throw new RuntimeException();
 		}
 	}
 
