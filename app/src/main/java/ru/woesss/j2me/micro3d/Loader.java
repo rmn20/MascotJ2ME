@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Yury Kharchenko
+ * Copyright 2020-2025 Yury Kharchenko
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -299,7 +299,7 @@ class Loader {
 		int width;
 		int height;
 		int numColors;
-		boolean reversed;
+		int colorSize;
 		if (dibHeaderSize == BMP_VERSION_CORE) {
 			width = loader.readUShort();
 			height = loader.readUShort();
@@ -308,18 +308,11 @@ class Loader {
 			if (bpp != 8) {
 				throw new RuntimeException("Unsupported BMP format: bpp = " + bpp);
 			}
+			colorSize = 3;
 			numColors = 256;
-			reversed = true;
 		} else if (dibHeaderSize == BMP_VERSION_3) {
 			width = loader.readInt();
-			int h = loader.readInt();
-			if (h < 0) {
-				height = -h;
-				reversed = false;
-			} else {
-				height = h;
-				reversed = true;
-			}
+			height = loader.readInt();
 			loader.skip(2);
 			int bpp = loader.readUShort();
 			if (bpp != 8) {
@@ -331,41 +324,41 @@ class Loader {
 			}
 			loader.skip(12);
 			numColors = loader.readInt();
-			if(numColors == 0) numColors = 256;
+			if (numColors == 0 || numColors > 256) {
+				numColors = 256;
+			}
+			colorSize = 4;
 			loader.skip(4);
 		} else {
 			throw new RuntimeException("Unsupported BMP version = " + dibHeaderSize);
 		}
 
-		int paletteOffset = BMP_FILE_HEADER_SIZE + dibHeaderSize;
-		if(rasterOffset < paletteOffset + numColors * 4) rasterOffset = paletteOffset + numColors * 4;
+		int paletteStart = BMP_FILE_HEADER_SIZE + dibHeaderSize;
+		int paletteEnd = paletteStart + numColors * colorSize;
+		if (rasterOffset < paletteEnd) {
+			rasterOffset = paletteEnd;
+		}
+
+		int stride = (width + 3) / 4 * 4;
+		if (height < 0) {
+			height = -height;
+		} else {
+			rasterOffset += (height - 1) * stride;
+			stride = -stride;
+		}
 
 		TextureData textureData = new TextureData(width, height);
 		ByteBuffer raster = textureData.getRaster();
-		int remainder = width % 4;
-		int stride = remainder == 0 ? width : width + 4 - remainder;
-		if (reversed) {
-			for (int i = height - 1; i >= 0; i--) {
-				for (int j = rasterOffset + i * stride, s = j + width; j < s; j++) {
-					byte idx = data[j];
-					int p = (idx & 0xff) * 4 + paletteOffset;
-					byte b = data[p++];
-					byte g = data[p++];
-					byte r = data[p];
-					raster.put(r).put(g).put(b).put((byte) (idx == 0 ? 0 : 0xff));
-				}
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) {
+				int colorIdx = data[rasterOffset + j] & 0xff;
+				int p = paletteStart + colorIdx * colorSize;
+				byte b = data[p++];
+				byte g = data[p++];
+				byte r = data[p];
+				raster.put(r).put(g).put(b).put((byte) (colorIdx == 0 ? 0 : 0xff));
 			}
-		} else {
-			for (int i = 0; i < height; i++) {
-				for (int j = rasterOffset + i * stride, s = j + width; j < s; j++) {
-					byte idx = data[j];
-					int p = (idx & 0xff) * 4 + paletteOffset;
-					byte b = data[p++];
-					byte g = data[p++];
-					byte r = data[p];
-					raster.put(r).put(g).put(b).put((byte) (idx == 0 ? 0 : 0xff));
-				}
-			}
+			rasterOffset += stride;
 		}
 
 		return textureData;
